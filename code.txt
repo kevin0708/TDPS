@@ -115,11 +115,6 @@ def transfer_command(middle_line):
         #img.draw_line((middle_line, 0, middle_line, img.height()-1), color = 255, thickness = 2)
 '''
 
-# 在原图里画线
-
-
-# 直接在二值图里画线
-
 counter = 0
 next_time = 0
 if_color_detection = 0
