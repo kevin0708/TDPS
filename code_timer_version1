@@ -1,0 +1,183 @@
+# Untitled - By: ssc - 周三 5月 19 2021
+# Untitled - By: lzh‘computer - 周一 3月 22 2021
+
+import pyb
+import sensor, image, time, pyb
+import math
+from pyb import UART
+from pyb import delay
+uart = UART(3, 9600, bits=8, parity=None, stop=1)
+kernel_size = 1 # kernel width = (size*2)+1, kernel height = (size*2)+1
+kernel = [-1, -1, -1,\
+          -1, +2, -1,\
+          -1, -1, -1]
+
+sensor.reset() # Initialize the camera sensor.
+sensor.set_pixformat(sensor.GRAYSCALE) # or sensor.RGB565
+sensor.set_framesize(sensor.QVGA) # or sensor.QVGA (or others)
+sensor.skip_frames(time = 1000) # Let new settings take affect.
+sensor.set_gainceiling(8)
+sensor.set_auto_gain(False)  # must turn this off to prevent image washout...
+sensor.set_auto_whitebal(False)  # must turn this off to prevent image washout...
+
+tag_families = 0
+tag_families |= image.TAG36H11 # comment out to disable this family (default family)
+ap_flag = 0
+
+def family_name(tag):
+    if(tag.family() == image.TAG16H5):
+        return "TAG16H5"
+    if(tag.family() == image.TAG36H11):
+        return "TAG36H11"
+
+f_x = (2.8 / 3.984) * 160 # find_apriltags defaults to this if not set
+f_y = (2.8 / 2.952) * 120 # find_apriltags defaults to this if not set
+c_x = 160 * 0.5 # find_apriltags defaults to this if not set (the image.w * 0.5)
+c_y = 120 * 0.5 # find_apriltags defaults to this if not set (the image.h * 0.5)
+
+def find_Aptag(img):
+    for tag in img.find_apriltags(fx=f_x, fy=f_y, cx=c_x, cy=c_y): # defaults to TAG36H11 without "families".
+        img.draw_rectangle(tag.rect(), color = (255, 0, 0))
+        img.draw_cross(tag.cx(), tag.cy(), color = (0, 255, 0))
+        args1 = (family_name(tag), tag.id(), (180 * tag.rotation()) / math.pi)
+        print("Tag Family %s, Tag ID %d, rotation %f (degrees)" % args1)
+        args2 = (tag.x_translation(), tag.y_translation(), tag.z_translation(), \
+            degrees(tag.x_rotation()), degrees(tag.y_rotation()), degrees(tag.z_rotation()))
+        print("Tx: %f, Ty %f, Tz %f, Rx %f, Ry %f, Rz %f"% args2)
+        return args2
+    global ap_flag
+    ap_flag=0
+    return 0
+
+def degrees(radians):
+    return (180 * radians) / math.pi
+
+def get_his(b_array):
+    his = list()
+    for i in range(320):
+        his.append(0)
+        for j in range(240):
+            index = i * 240 + j
+            his[i] += b_array[index]
+    return his
+
+def bubble_sort(alist):
+    length = len(alist)
+    line_list = list(range(length))
+
+    for i in range(length - 1):
+        # i表示比较多少轮
+        for j in range(length - i - 1):
+            # j表示每轮比较的元素的范围，因为每比较一轮就会排序好一个元素的位置，
+            # 所以在下一轮比较的时候就少比较了一个元素，所以要减去i
+            if alist[j] > alist[j + 1]:
+                alist[j], alist[j + 1] = alist[j + 1], alist[j]
+                line_list[j], line_list[j + 1] = line_list[j + 1], line_list[j]
+    return alist, line_list
+
+
+
+def get_sparse_his(b_array):
+    his = list()
+    for i in range(39):
+        real_column = (i + 1) * 8 - 1
+        his.append(0)
+
+        index = real_column
+
+        his[i] += b_array[index] # 为了减少乘法运算量，将第一步不加320的运算在循环之外算
+
+        for j in range(239):
+            index = index + 320
+            his[i] += b_array[index]
+    return his
+
+
+def get_sparse_middle_line(his):
+
+    sorted_list, sorted_index = bubble_sort(his)
+    for i in range(25):
+        his[sorted_index[i]] = 0
+
+    half_sum = int(sum(his) / 2)
+    temp = 0
+    for i in range(39):
+        temp += his[i]
+        if temp >= half_sum:
+            if i < 20 and i != 0:
+                return (i-1)
+            else:
+                return i
+
+def get_middle_line(his):
+    half_sum = int(sum(his) / 2)
+    temp = 0
+    for i in range(320):
+        temp += his[i]
+        if temp >= half_sum:
+            return i
+
+def transfer_command(middle_line):
+    if middle_line>130 and middle_line<190:
+        uart.write("D")
+        delay(500)
+        uart.write("E")
+    elif middle_line<=130:
+        uart.write("D")
+        delay(500)
+        uart.write("E")
+    else:
+        uart.write("D")
+        delay(500)
+        uart.write("E")
+
+def flag_ap(t):
+    global ap_flag
+    global tr_flag
+    ap_flag = 1
+    tr_flag = 1
+#define the Timer
+tim = pyb.Timer(4, freq=1,callback=flag_ap)      # create a timer object using timer 4 - trigger at 1Hz 使用定时器4创建一个定时器对象-以1Hz触发
+
+
+#define the flag
+status = 1
+tr_flag= 0
+####
+AVERAGE_LIST = [0,0,0,0,0,0,0,0,0,0]
+AVERAGE_FLAG = 0
+AVERAGE_counter = 0
+AVERAGE_index = 0
+
+threshold = (57, 82, 18, 90, 20, 69)
+while(True):
+    if status == 1:
+        img = sensor.snapshot()
+        img_array = img.find_edges(image.EDGE_CANNY, threshold=(50, 80))
+        his = get_sparse_his(img_array)
+        middle_line = (get_sparse_middle_line(his)+1) * 8
+        this_result = middle_line
+        AVERAGE_LIST[AVERAGE_index] = middle_line
+        AVERAGE_index += 1
+        if AVERAGE_index == 10:
+            AVERAGE_index = 0
+        if AVERAGE_FLAG:
+            middle_line = sum(AVERAGE_LIST) // 20 + this_result // 2
+        else:
+            AVERAGE_counter += 1
+            if AVERAGE_counter == 10:
+                AVERAGE_FLAG = 1
+
+    if ap_flag == 1:
+        img_ap = sensor.snapshot()
+
+        args=find_Aptag(img_ap)
+        if args != 0:
+            if abs(args[2])>=10:
+                print('tag so far\n')
+
+    if tr_flag == 1:
+        transfer_command(middle_line)
+        tr_flag = 0
+
+    img.draw_line((middle_line, 0, middle_line, img.height()-1), color = 255, thickness = 2)
