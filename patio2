@@ -1,0 +1,144 @@
+# Untitled - By: ssc - 周四 5月 20 2021
+"
+################################
+init（）；
+status = 0;
+while(1)
+{
+图片拍摄;
+if(status == 1)
+判断apriltag；
+
+if(stats == 0)//task1
+{
+定时直行1（）;//到初始色块位置,
+判断颜色（）；
+调整方向（）；
+定时直行2（）；//不管什么方法匹配同色色块
+
+调整方向（）；
+status = 1；
+}
+
+if(status == 1)//task2 but 具体实现需要再讨论！
+{
+定时直行3（）；//前进一段距离以便能看清April tag
+追Apriltag1（）;
+调整方向（）；
+直行4（）；
+追Apriltag2（）；
+机械臂动作（）；
+}
+if(status == 2)//task3
+{
+返回直行5（）;
+通信（）：
+}
+}
+
+###############################
+"
+
+import sensor, image, time
+
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time = 2000)
+
+#define flags
+status = 0 # which task is doing
+ap_flag = 0 # if detect bacon
+path = 0 # in task 1 ,which path to run
+over_task1 = 0 #the task 1 is over ,adjust direction
+target = 10  #the target distance for the first bacon
+rob_flag = 0 #ready to operate robot arm
+com_flag = 0
+
+def detect_aptag():
+    print("try to find ap_tag\n")
+        #return args
+    global ap_flag
+    ap_flag = 1 #reset the flag
+    #return 0
+
+
+def go_straight():
+    print("\n")
+
+def detect_color():
+    #if too far, dont return effective value
+    #if close enough,chage the flag variable-> path
+    return path
+
+def match_color():
+    #path = 0,no action, path = 1/2/3 is corresponding to different color
+    #According to the input path , adjust direction and match the color square
+    #make sure the direction is accurate
+    global over_task1
+    over_task1 = 1 #finish task1
+
+def adjust_dir1(path):
+    #according to the path it has gone through, adjust the direction
+    gloabl status
+    status = 2 # start task2
+
+def adjust_dir2():
+    #adjust direction and set the flag
+
+def goto_target():
+    #control the car to the target place
+    #if it have done it , change the flag
+    global rob_flag
+    rob_flag = 1 #ready to operate
+
+def robot_arm():
+    #operate the robot arm and reset the flag
+    global status
+    status = 3
+
+def go_back():
+    print("go back")
+
+def commu():
+    print('ask the STC to communicaiton')
+
+def stop():
+    print("stop and finish the patio2")
+while(True):
+    img = sensor.snapshot()
+
+    if status == 1: # task 1
+        go_straight() # go straight to find the inital color square
+        path=detect_color()
+        match_color(path)
+        if over_task1 == 1 :
+            adjust_direction(path)
+
+    if status == 2 : #task 2
+        go_straight()
+        if ap_flag == 1: # detect the bacons every given interval
+            args = detect_aptag()
+            if(args != 0):
+                id = args[0]
+        if id == 0 || tz <= target :
+            adjust_dir2()
+            goto_target()
+        if id == 1 || rot_flag == 1 :
+            robot_arm()
+
+    if status == 3 : #task3
+        go_back()
+        if com_flag == 1:
+            commu()
+        stop()
+
+
+
+
+
+
+
+
+
+
