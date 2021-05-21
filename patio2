@@ -1,58 +1,26 @@
 # Untitled - By: ssc - 周四 5月 20 2021
-"
-################################
-init（）；
-status = 0;
-while(1)
-{
-图片拍摄;
-if(status == 1)
-#判断apriltag；
- for tag in img.find_apriltags(families=image.TAG36H11): # defaults to TAG36H11 without "families".
-        img.draw_rectangle(tag.rect(), color = (255, 0, 0))
-        img.draw_cross(tag.cx(), tag.cy(), color = (0, 255, 0))
-        #print_args = (family_name(tag), tag.id(), (180 * tag.rotation()) / math.pi)
-        #print("Tag Family %s, Tag ID %d, rotation %f (degrees)" % print_args)
-    #print(clock.fps())
-    
-if(stats == 0)//task1
-{
-定时直行1（）;//到初始色块位置,
-判断颜色（）；//red:upper tip; green:left-most tip; blue:lower tip
-调整方向（）；
-定时直行2（）；//不管什么方法匹配同色色块
 
-调整方向（）；
-status = 1；
-}
+import sensor, image, time, pyb, math
+from pyb import UART
+from pyb import delay
 
-if(status == 1)//task2 but 具体实现需要再讨论！
-{
-定时直行3（）；//前进一段距离以便能看清April tag
-#追Apriltag1（）;
-if tag.id()==1:
-    
-调整方向（）；
-直行4（）；
-追Apriltag2（）；
-机械臂动作（）；
-}
-if(status == 2)//task3
-{
-返回直行5（）;
-通信（）：
-}
-}
-
-###############################
-"
-
-import sensor, image, time
-
+uart = UART(3, 9600, bits=8, parity=None, stop=1)
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
 sensor.skip_frames(time = 2000)
+sensor.set_auto_gain(False)  # must turn this off to prevent image washout...
+sensor.set_auto_whitebal(False)  # must turn this off to prevent image washout...
+
+tag_families = 0
+tag_families |= image.TAG36H11 # comment out to disable this family (default family)
+
+f_x = (2.8 / 3.984) * 160 # find_apriltags defaults to this if not set
+f_y = (2.8 / 2.952) * 120 # find_apriltags defaults to this if not set
+c_x = 160 * 0.5 # find_apriltags defaults to this if not set (the image.w * 0.5)
+c_y = 120 * 0.5 # find_apriltags defaults to this if not set (the image.h * 0.5)
+
+
 
 #define flags
 status = 0 # which task is doing
@@ -62,24 +30,72 @@ over_task1 = 0 #the task 1 is over ,adjust direction
 target = 10  #the target distance for the first bacon
 rob_flag = 0 #ready to operate robot arm
 com_flag = 0
+tz = -1 #temporary used
 
-def detect_aptag():
-    print("try to find ap_tag\n")
-        #return args
+def turn_flag_ap(t):
     global ap_flag
-    ap_flag = 1 #reset the flag
-    #return 0
+    #global tr_flag
+    ap_flag = 1
+    #tr_flag = 1
 
+def family_name(tag):
+    if(tag.family() == image.TAG16H5):
+        return "TAG16H5"
+    if(tag.family() == image.TAG36H11):
+        return "TAG36H11"
+
+def detect_aptag(img):
+    print('done detect aptags')
+    for tag in img.find_apriltags(fx=f_x, fy=f_y, cx=c_x, cy=c_y): # defaults to TAG36H11 without "families".
+        img.draw_rectangle(tag.rect(), color = (255, 0, 0))
+        img.draw_cross(tag.cx(), tag.cy(), color = (0, 255, 0))
+        args1 = (family_name(tag), tag.id(), (180 * tag.rotation()) / math.pi)
+        print("Tag Family %s, Tag ID %d, rotation %f (degrees)" % args1)
+        args = (tag.x_translation(), tag.y_translation(), tag.z_translation(), \
+            degrees(tag.x_rotation()), degrees(tag.y_rotation()), degrees(tag.z_rotation()))
+        print("Tx: %f, Ty %f, Tz %f, Rx %f, Ry %f, Rz %f"% args)
+        return args
+    global ap_flag
+    ap_flag=0 #reset the flag
+    return 0
+
+def degrees(radians):
+    return (180 * radians) / math.pi
+
+def tr_command(x):
+    print('done tr_com')
+    uart.write(x)
+    uart.write("E")
 
 def go_straight():
-    print("\n")
+    tr_command("D")
 
-def detect_color():
+threshold_1 = (57, 82, 18, 90, 20, 69) #red
+threshold_2 = (60, 75, -80, -40, 30, 50) #green
+threshold_3 = (29, 49, -5, 25, -63, -35) # blue
+
+def detect_color(img):
     #if too far, dont return effective value
     #if close enough,chage the flag variable-> path
-    return path
+    print('done detect_color')
+    blobs = img.find_blobs([threshold_1], pixels_threshold=100, area_threshold=100, merge=True, margin=10)
+    for blob in blobs:
+        img.draw_rectangle(blob.rect(),color=255,thickness=3)
+        img.draw_string(blob.cx(), blob.cy(), "Red", color = 255, scale = 2, mono_space = False,
+                        char_rotation = 0, char_hmirror = False, char_vflip = False,
+                        string_rotation = 0, string_hmirror = False, string_vflip = False)
+        if blob.area() >= 20000:
+            print('Reach the target distance')
+            #set the path
+            return path
+        else:
+            print('Distance too far')
+            return 1
+     #temproary test ,delete it when correct it.
 
-def match_color():
+
+def match_color(path):
+    print('done match_color')
     #path = 0,no action, path = 1/2/3 is corresponding to different color
     #According to the input path , adjust direction and match the color square
     #make sure the direction is accurate
@@ -88,65 +104,59 @@ def match_color():
 
 def adjust_dir1(path):
     #according to the path it has gone through, adjust the direction
-    gloabl status
-    status = 2 # start task2
+    global status
+    status = 1 # start task2
 
 def adjust_dir2():
     #adjust direction and set the flag
+    print('adjust dir')
+    global status
+    status = 2
 
 def goto_target():
+    print('go to the target')
     #control the car to the target place
     #if it have done it , change the flag
     global rob_flag
     rob_flag = 1 #ready to operate
 
 def robot_arm():
+    print('operate the robot arm')
     #operate the robot arm and reset the flag
     global status
-    status = 3
+    status = 2
 
 def go_back():
     print("go back")
+    global com_flag
+    com_flag = 1
 
 def commu():
     print('ask the STC to communicaiton')
 
-def stop():
-    print("stop and finish the patio2")
+
+#define the Timer
+tim = pyb.Timer(4, freq=1,callback=turn_flag_ap)      #使用定时器4创建一个定时器对象-以1Hz触发
+
 while(True):
     img = sensor.snapshot()
 
-    if status == 1: # task 1
+    if status == 0: # task 1
         go_straight() # go straight to find the inital color square
-        path=detect_color()
+        path=detect_color(img)
         match_color(path)
         if over_task1 == 1 :
-            adjust_direction(path)
-
-    if status == 2 : #task 2
+            adjust_dir1(path)
+    if status == 1:
         go_straight()
-        if ap_flag == 1: # detect the bacons every given interval
-            args = detect_aptag()
-            if(args != 0):
-                id = args[0]
-        if id == 0 || tz <= target :
-            adjust_dir2()
-            goto_target()
-        if id == 1 || rot_flag == 1 :
+        if ap_flag == 1:
+            args=detect_aptag(img)
+            if (args != 0) and (abs(args[2]<=3)):
+                goto_target() # to be more accurate should let the car get to the target palce
+        if rob_flag == 1:
             robot_arm()
-
-    if status == 3 : #task3
+    if status == 2 : #task3
         go_back()
         if com_flag == 1:
             commu()
-        stop()
-
-
-
-
-
-
-
-
-
-
+        break;
