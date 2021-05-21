@@ -7,12 +7,18 @@ while(1)
 {
 图片拍摄;
 if(status == 1)
-判断apriltag；
-
+#判断apriltag；
+ for tag in img.find_apriltags(families=image.TAG36H11): # defaults to TAG36H11 without "families".
+        img.draw_rectangle(tag.rect(), color = (255, 0, 0))
+        img.draw_cross(tag.cx(), tag.cy(), color = (0, 255, 0))
+        #print_args = (family_name(tag), tag.id(), (180 * tag.rotation()) / math.pi)
+        #print("Tag Family %s, Tag ID %d, rotation %f (degrees)" % print_args)
+    #print(clock.fps())
+    
 if(stats == 0)//task1
 {
 定时直行1（）;//到初始色块位置,
-判断颜色（）；
+判断颜色（）；//red:upper tip; green:left-most tip; blue:lower tip
 调整方向（）；
 定时直行2（）；//不管什么方法匹配同色色块
 
@@ -23,7 +29,9 @@ status = 1；
 if(status == 1)//task2 but 具体实现需要再讨论！
 {
 定时直行3（）；//前进一段距离以便能看清April tag
-追Apriltag1（）;
+#追Apriltag1（）;
+if tag.id()==1:
+    
 调整方向（）；
 直行4（）；
 追Apriltag2（）；
