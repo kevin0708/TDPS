@@ -70,9 +70,9 @@ def tr_command(x):
 def go_straight():
     tr_command("D")
 
-threshold_1 = (57, 82, 18, 90, 20, 69) #red
-threshold_2 = (60, 75, -80, -40, 30, 50) #green
-threshold_3 = (29, 49, -5, 25, -63, -35) # blue
+threshold_1 =  (30, 80, 12, 107, -95, -13)#pink
+threshold_2 = (70, 100, -58, 87, 5, 97) #yellow
+threshold_3 =  (10, 80, 12, 107, -95, -13)# blue
 
 def detect_color(img):
     #if too far, dont return effective value
