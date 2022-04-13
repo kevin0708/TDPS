@@ -1,0 +1,92 @@
+/* Program for Ultrasonic sensor use
+*/
+/*Pin interruptions are only possible with ports A and D*/
+ 
+#include "mbed.h"
+ 
+Serial pc(D1,D0);  //Configuration of the serial communication to send the value of the sensor
+DigitalOut trig(D5);  //Trigger pin configuration
+InterruptIn echo(D6);   //Echo pin interrupt configuration
+DigitalOut trig1(D9); //right1
+InterruptIn echo1(D10);
+DigitalOut trig2(D11);//right2
+InterruptIn echo2(D12);
+
+Timer tempo;
+
+ float tdist=0, distcm=0, distin=0, dist0=0;
+ float tdist1=0, distcm1=0, distin1=0, dist1=0;
+ float tdist2=0, distcm2=0, distin2=0, dist2=0;
+    void iniP(){            //Routine to receive the initial pulse of the Echo pin
+        tempo.start();      //Routine to start the counter
+        return;
+        }
+        
+    void finP(){ //Routine to get the end time of the pulse
+    
+        tdist = tempo.read_us();  //Reading the elapsed time
+        distcm = tdist/58;         // distance "cm"
+        distin = tdist/148;        // distance "in"
+        tempo.stop();           //Stop the timer
+        tempo.reset();          //reset to next cycle
+        return;
+        }
+
+  void finP1(){ //Routine to get the end time of the pulse
+    
+        tdist1 = tempo.read_us();  //Reading the elapsed time
+        distcm1 = tdist1/58;         // distance "cm"
+        distin1 = tdist1/148;        // distance "in"
+        tempo.stop();           //Stop the timer
+        tempo.reset();          //reset to next cycle
+        return;
+        }               
+void finP2(){ //Routine to get the end time of the pulse
+    
+        tdist2 = tempo.read_us();  //Reading the elapsed time
+        distcm2 = tdist2/58;         // distance "cm"
+        distin2 = tdist2/148;        // distance "in"
+        tempo.stop();           //Stop the timer
+        tempo.reset();          //reset to next cycle
+        return;
+        }
+        
+    int main(){
+        pc.printf("Ultrasonic ranging test \n"); 
+        echo.rise(&iniP);   //return pulse start reading
+        echo.fall(&finP);   //Reading the end of the return pulse
+        echo1.rise(&iniP);
+        echo1.fall(&finP1);
+        echo2.rise(&iniP);
+        echo2.fall(&finP2);
+        while(1){
+            
+            trig=1;             //trigger start
+            wait_us(10);        // 10us puls
+            trig=0;             //end of trigger
+            if(distcm != dist0 &&(distcm < 1000) ){ //routine to avoid sending too many values
+            dist0 = distcm;
+            pc.printf("Front Distance is %.2f cm \r\n",distcm); 
+            }
+            wait_ms(200);
+            
+            trig1=1;             //trigger start
+            wait_us(10);        // 10us puls
+            trig1=0;             //end of trigger
+            if(distcm1 != dist1 && distcm1 < 1000){ //routine to avoid sending too many values
+                dist1 = distcm1;
+                pc.printf("1 Right Distance is %.2f cm \r\n",distcm1); 
+            }
+            wait_ms(200);
+            
+            trig2=1;             //trigger start
+            wait_us(10);        // 10us puls
+            trig2=0;             //end of trigger
+            if(distcm2 != dist2 && distcm2 < 1000){ //routine to avoid sending too many values
+                dist2 = distcm2;
+                pc.printf("2 Right Distance is %.2f cm \r\n",distcm2); 
+            }
+            wait_ms(200);
+        }
+                
+    }
